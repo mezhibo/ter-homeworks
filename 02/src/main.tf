@@ -9,16 +9,56 @@ resource "yandex_vpc_subnet" "develop" {
 }
 
 
-data "yandex_compute_image" "ubuntu" {
-  family = "ubuntu-2004-lts"
+resource "yandex_vpc_subnet" "db" {
+  name           = var.vpc_name_db
+  zone           = var.default_zone_db
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = var.default_cidr_db
 }
-resource "yandex_compute_instance" "platform" {
-  name        = "netology-develop-platform-web"
-  platform_id = "standart-v4"
+
+
+resource "yandex_compute_instance" "platform2" {
+  name        = local.vm_db
+  platform_id = var.vm_db_platform
+  zone        = var.default_zone_db
   resources {
-    cores         = 1
-    memory        = 1
-    core_fraction = 5
+    cores         = var.vms_resources.vm_db_resources.cores
+    memory        = var.vms_resources.vm_db_resources.memory
+    core_fraction = var.vms_resources.vm_db_resources.core_fraction
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = true
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.db.id
+    nat       = true
+  }
+
+  # metadata = {
+  #   serial-port-enable = 1
+  #   ssh-keys = "ubuntu:${file(var.vms_ssh_root_key)}"
+  # }
+  metadata = var.metadata
+}
+
+
+
+data "yandex_compute_image" "ubuntu" {
+  family = var.vm_web_version
+}
+
+resource "yandex_compute_instance" "platform" {
+  name        = local.vm_web
+  platform_id = var.vm_web_cpu_id
+  resources {
+    cores         = var.vms_resources.vm_web_resources.cores
+    memory        = var.vms_resources.vm_web_resources.memory
+    core_fraction = var.vms_resources.vm_web_resources.core_fraction
   }
   boot_disk {
     initialize_params {
@@ -33,9 +73,9 @@ resource "yandex_compute_instance" "platform" {
     nat       = true
   }
 
-  metadata = {
-    serial-port-enable = 1
-    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
-  }
-
+  # metadata = {
+  #   serial-port-enable = 1
+  #   ssh-keys = "ubuntu:${file(var.vms_ssh_root_key)}"
+  # }
+  metadata = var.metadata
 }
